@@ -4,53 +4,46 @@ import { Btn, Modal } from './components'
 import { Icon } from './icons'
 import { ItemForm, TaskForm } from './forms'
 import { Calendar, Dashboard, History, SettingsPage, Tasks } from './pages'
-import type { D } from './types'
-import { dueAt, isOverdue, itemMsg, onDay, overdueMsg, show, t12, taskMsg, today } from './util'
+import { LoginScreen } from './LoginScreen'
+import type { AuthStatus, D, InstallPromptEvent } from './types'
+import { today } from './util'
 
 const NAV = [['home', 'home', 'Home'], ['tasks', 'tasks', 'Tasks'], ['calendar', 'calendar', 'Calendar'], ['history', 'history', 'History']]
 
-function useNotifier(d: D | null) {
-  useEffect(() => {
-    if (!d || !('Notification' in window)) return
-    const tick = () => {
-      if (Notification.permission !== 'granted') return
-      const seen: string[] = JSON.parse(localStorage.getItem('dp_seen') || '[]'); const now = Date.now(); const s = d.settings
-      const fire = (k: string, body: string) => { if (!seen.includes(k)) { seen.push(k); show(body).catch(() => {}) } }
-      const due = (at: number) => now >= at && now - at < 30 * 60000
-      for (const t of d.tasks) {
-        if (t.status === 'completed' || !t.dueDate) continue
-        const end = +dueAt(t)
-        if (s.task && t.reminder != null && t.dueTime && due(end - t.reminder * 60000) && now < end) fire(`t${t.id}r`, taskMsg(t))
-        if (s.overdue && isOverdue(t)) fire(`t${t.id}o`, overdueMsg(t))
-      }
-      const td = today()
-      for (const i of onDay(d.items, td)) {
-        if (i.reminder == null || d.done.some(x => x.scheduleId === i.id && x.date === td)) continue
-        const start = +new Date(`${td}T${i.startTime}`)
-        if ((['class', 'lab', 'study'].includes(i.kind) ? s.class : s.event) && due(start - i.reminder * 60000) && now < start) fire(`i${i.id}${td}`, itemMsg(i, i.reminder))
-      }
-      if (s.summary && new Date().getHours() >= 8) {
-        const nt = d.tasks.filter(x => x.dueDate === td && x.status !== 'completed').length, na = onDay(d.items, td).length
-        if (nt + na) fire('s' + td, `Good morning! You have ${nt} task${nt === 1 ? '' : 's'} and ${na} scheduled activit${na === 1 ? 'y' : 'ies'} today.`)
-      }
-      localStorage.setItem('dp_seen', JSON.stringify(seen.slice(-300)))
-    }
-    tick(); const id = setInterval(tick, 30000); return () => clearInterval(id)
-  }, [d])
-}
-
 export default function App() {
   const [tab, setTab] = useState('home'); const [d, setD] = useState<D | null>(null); const [err, setErr] = useState('')
+  const [auth, setAuth] = useState<AuthStatus | null>(null)
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
   const [add, setAdd] = useState<null | 'pick' | 'task' | 'class' | 'personal'>(null)
   const reload = useCallback(async () => {
     try { const [tasks, items, done, notes, settings] = await Promise.all(['/tasks', '/schedule', '/done', '/notes', '/settings'].map(api.get)); setD({ tasks, items, done, notes, settings, reload }); setErr('') }
     catch (e: any) { setErr(e.message) }
   }, [])
-  useEffect(() => { reload() }, [reload]); useNotifier(d)
+  useEffect(() => { api.get('/auth/status').then(setAuth).catch(e => setErr(e.message)) }, [])
+  useEffect(() => { if (auth?.authenticated) reload() }, [auth?.authenticated, reload])
+  useEffect(() => {
+    const onInstallPrompt = (event: Event) => {
+      event.preventDefault()
+      setInstallPrompt(event as InstallPromptEvent)
+    }
+    const onInstalled = () => setInstallPrompt(null)
+    window.addEventListener('beforeinstallprompt', onInstallPrompt)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onInstallPrompt)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [])
   useEffect(() => { const f = () => setAdd('pick'); window.addEventListener('dp:add', f); return () => window.removeEventListener('dp:add', f) }, [])
-  const page = d && ({ home: <Dashboard d={d} />, tasks: <Tasks d={d} />, calendar: <Calendar d={d} />, history: <History d={d} />, settings: <SettingsPage d={d} /> } as any)[tab]
+  const lock = async () => {
+    try { await api.post('/auth/logout', {}); setD(null); setAuth({ required: true, authenticated: false }); setErr('') }
+    catch (e: any) { setErr(e.message) }
+  }
+  const page = d && ({ home: <Dashboard d={d} />, tasks: <Tasks d={d} />, calendar: <Calendar d={d} />, history: <History d={d} />, settings: <SettingsPage d={d} onLock={lock} installPrompt={installPrompt} onInstallPromptUsed={() => setInstallPrompt(null)} /> } as any)[tab]
   const title = tab === 'settings' ? 'Settings' : NAV.find(n => n[0] === tab)?.[2]
   const subtitle = tab === 'home' ? 'A little more intention, one day at a time.' : tab === 'tasks' ? 'Keep your priorities moving forward.' : tab === 'calendar' ? 'See what’s ahead and make time for it.' : tab === 'history' ? 'Look back on how far you’ve come.' : 'Make DayPlan work the way you do.'
+  if (auth === null) return <main className="min-h-screen grid place-items-center bg-bg p-5"><p className="text-sm text-mute">{err || 'Loading DayPlan…'}</p></main>
+  if (auth.required && !auth.authenticated) return <LoginScreen onAuthenticated={() => setAuth({ required: true, authenticated: true })} />
   return <div className="app-shell min-h-screen md:flex bg-bg">
     <aside className="sidebar hidden md:flex flex-col w-64 shrink-0 px-5 py-7 gap-1 sticky top-0 h-screen">
       <div className="brand-lockup mb-10 px-2">

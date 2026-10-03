@@ -20,14 +20,3 @@ export const onDay = (items: Item[], date: string) => items.filter(i => occursOn
 export const dueAt = (t: Task) => new Date(`${t.dueDate}T${t.dueTime || '23:59'}`)
 export const isOverdue = (t: Task) => t.status !== 'completed' && !!t.dueDate && dueAt(t) < new Date()
 export const dur = (m: number) => m % 60 === 0 ? `${m / 60} hour${m === 60 ? '' : 's'}` : m < 60 ? `${m} min` : `${(m / 60).toFixed(1)} hours`
-
-export const askPermission = async () => ('Notification' in window ? await Notification.requestPermission() : 'unsupported')
-export async function show(body: string) {
-  const reg = await navigator.serviceWorker?.getRegistration()
-  if (reg) await reg.showNotification('DayPlan', { body }); else new Notification('DayPlan', { body })
-}
-export const taskMsg = (t: Task) => `Your ${t.title} is due at ${t12(t.dueTime || '23:59')}.${t.estimatedMinutes ? ` You estimated ${dur(t.estimatedMinutes)} to complete it.` : ''}`
-export const overdueMsg = (t: Task) => `Your ${t.title} was due at ${t12(t.dueTime || '23:59')} and is still incomplete.`
-export const itemMsg = (i: Item, mins: number) => ['class', 'lab', 'study'].includes(i.kind)
-  ? `${i.title} starts at ${t12(i.startTime)}${i.location ? ` in ${i.location}` : ''}. ${mins > 0 ? `You have ${mins} minutes before it begins.` : 'It is starting now.'}`
-  : `${i.title} is scheduled from ${t12(i.startTime)} to ${t12(i.endTime)} today.`

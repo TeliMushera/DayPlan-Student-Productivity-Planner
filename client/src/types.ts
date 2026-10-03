@@ -4,3 +4,5 @@ export type Done = { scheduleId: string; date: string; completedAt: string }
 export type Note = { id: string; scheduleId: string; date: string; whatLearned: string; importantPoints: string; doubts: string; followUp: string }
 export type Settings = { task: boolean; class: boolean; event: boolean; summary: boolean; overdue: boolean; defaultReminder: number }
 export type D = { tasks: Task[]; items: Item[]; done: Done[]; notes: Note[]; settings: Settings; reload: () => Promise<void> }
+export type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }> }
+export type AuthStatus = { required: boolean; authenticated: boolean }

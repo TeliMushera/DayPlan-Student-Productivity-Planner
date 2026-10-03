@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { api } from './api'
 import { Icon } from './icons'
 import { Btn, Card, Empty, Progress, Section, inp } from './components'
+import { DeviceSettings } from './DeviceSettings'
 import { ItemForm, NotesForm, TaskForm } from './forms'
-import type { D, Item, Task } from './types'
-import { askPermission, dayLabel, dur, dueAt, isOverdue, iso, onDay, parse, t12, today } from './util'
+import type { D, InstallPromptEvent, Item, Task } from './types'
+import { dayLabel, dur, dueAt, isOverdue, iso, onDay, parse, t12, today } from './util'
 
 const dot = { high: 'bg-red-500', medium: 'bg-amber-500', low: 'bg-emerald-500' }
 const act = async (d: D, f: () => Promise<any>) => { try { await f(); await d.reload() } catch (e: any) { alert(e.message) } }
@@ -107,12 +108,21 @@ export function History({ d }: { d: D }) {
     {!rows.length && <Empty text="Completed tasks and classes will show up here." />}</div>
 }
 
-export function SettingsPage({ d }: { d: D }) {
-  const s = d.settings; const [perm, setPerm] = useState('Notification' in window ? Notification.permission : 'unsupported')
+export function SettingsPage({ d, onLock, installPrompt, onInstallPromptUsed }: {
+  d: D
+  onLock: () => void
+  installPrompt: InstallPromptEvent | null
+  onInstallPromptUsed: () => void
+}) {
+  const s = d.settings
   const save = (b: any) => act(d, () => api.put('/settings', { ...s, ...b }))
-  return <div className="space-y-4 max-w-xl"><Card className="space-y-2"><h2 className="font-semibold">Notifications</h2>
-    <p className="text-sm text-mute">{perm === 'granted' ? 'Notifications are on for this browser.' : perm === 'denied' ? 'Notifications are blocked. Allow them in your browser’s site settings to get reminders.' : perm === 'unsupported' ? 'This browser does not support notifications.' : 'Allow notifications to get reminders while DayPlan is open.'}</p>
-    {perm === 'default' && <Btn onClick={async () => setPerm(await askPermission())}>Enable notifications</Btn>}
-    {([['task', 'Task reminders'], ['class', 'Class reminders'], ['event', 'Event reminders'], ['summary', 'Daily summary'], ['overdue', 'Overdue reminders']] as const).map(([k, l]) => <label key={k} className="flex justify-between items-center min-h-11"><span>{l}</span><input type="checkbox" className="size-6" checked={s[k]} onChange={e => save({ [k]: e.target.checked })} /></label>)}
-    <label className="block text-sm"><span className="text-mute">Default reminder</span><select className={inp} value={s.defaultReminder} onChange={e => save({ defaultReminder: +e.target.value })}>{[0, 5, 10, 15, 30, 60].map(n => <option key={n} value={n}>{n === 0 ? 'At start time' : n === 60 ? '1 hour before' : n + ' minutes before'}</option>)}</select></label></Card></div>
+  return <div className="space-y-4 max-w-xl">
+    <DeviceSettings installPrompt={installPrompt} onInstallPromptUsed={onInstallPromptUsed} />
+    <Card className="space-y-2"><h2 className="font-semibold">Which reminders to send</h2>
+      <p className="text-sm text-mute">These preferences apply to your devices.</p>
+      {([['task', 'Task reminders'], ['class', 'Class reminders'], ['event', 'Event reminders'], ['summary', 'Daily summary'], ['overdue', 'Overdue reminders']] as const).map(([k, l]) => <label key={k} className="flex justify-between items-center min-h-11"><span>{l}</span><input type="checkbox" className="size-6" checked={s[k]} onChange={e => save({ [k]: e.target.checked })} /></label>)}
+      <label className="block text-sm"><span className="text-mute">Default reminder for new items</span><select className={inp} value={s.defaultReminder} onChange={e => save({ defaultReminder: +e.target.value })}>{[0, 5, 10, 15, 30, 60].map(n => <option key={n} value={n}>{n === 0 ? 'At start time' : n === 60 ? '1 hour before' : n + ' minutes before'}</option>)}</select></label>
+    </Card>
+    <Card className="flex items-center justify-between gap-4"><div><h2 className="font-semibold">Lock DayPlan</h2><p className="text-sm text-mute mt-1">Sign out on this device.</p></div><Btn v="danger" onClick={onLock}>Lock</Btn></Card>
+  </div>
 }

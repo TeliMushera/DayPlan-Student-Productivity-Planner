@@ -1,1 +1,1 @@
-{"name":"dayplan-server","type":"module","scripts":{"dev":"node --env-file=.env --watch index.js","start":"node index.js"},"dependencies":{"dayplan":"file:..","dotenv":"^18.0.5","express":"^4.19.2","mongodb":"^6.8.0"}}
+{"name":"dayplan-server","type":"module","scripts":{"dev":"node --env-file=.env --watch index.js","start":"node index.js"},"dependencies":{"dayplan":"file:..","dotenv":"^18.0.5","express":"^4.19.2","express-rate-limit":"^8.7.0","mongodb":"^6.8.0","web-push":"^3.6.7"}}
