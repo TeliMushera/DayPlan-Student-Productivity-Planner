@@ -8,7 +8,7 @@ A simple dark-themed planner for organizing your day. Track tasks, classes, even
 - Add tasks with due dates, priorities, and subtasks.
 - Plan classes and events on the calendar.
 - Save notes about completed activities.
-- Get browser reminders while the app is open.
+- Get push reminders while DayPlan is closed (after enabling notifications on each device).
 
 ## Run it on your computer
 
